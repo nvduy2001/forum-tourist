@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Sửa địa điểm{% else %}Thêm địa điểm{% endif %}{% endblock %}
+{% block content %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <h1>{% if object %}Sửa địa điểm{% else %}Thêm địa điểm mới{% endif %}</h1>
+
+  <div class="card">
+    <label for="gmaps-coords">Dán tọa độ copy từ Google Maps</label>
+    <input type="text" id="gmaps-coords" placeholder="Ví dụ: 21.0285148, 105.8542145">
+    <p class="muted" style="margin-top:0.3rem;">
+      App Google Maps: nhấn giữ vào vị trí → chạm vào dòng tọa độ hiện ra để copy → dán vào đây.
+      Trên web: nhìn thanh địa chỉ sau dấu "@", hoặc chuột phải vào ghim đỏ.
+    </p>
+
+    <div id="map" style="height:320px; border-radius:8px; margin-top:0.75rem;"></div>
+    <p class="muted" style="margin-top:0.4rem;">
+      Có thể kéo thả ghim đỏ hoặc bấm vào bản đồ để chỉnh tay tọa độ — tọa độ tự điền vào 2 ô
+      Latitude/Longitude bên dưới.
+    </p>
+  </div>
+
+  <form class="card stacked" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    <label style="margin-top:1rem;">Giờ mở cửa</label>
+
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:0.75rem; margin-top:0.4rem;">
+      <strong style="font-size:0.9rem;">Áp dụng nhanh cho cả tuần</strong>
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end; margin-top:0.5rem;">
+        <label style="font-weight:normal; margin-top:0;">Giờ mở <input type="time" id="bulk-open"></label>
+        <label style="font-weight:normal; margin-top:0;">Giờ đóng <input type="time" id="bulk-close"></label>
+        <button class="btn secondary" type="button" id="bulk-apply-btn">Áp dụng cho cả tuần</button>
+      </div>
+      <p class="muted" style="margin-top:0.4rem;">
+        Điền giờ mở/đóng chung rồi bấm áp dụng cho cả 7 ngày — ngày nào nghỉ thì tick "Đóng cửa cả ngày"
+        ở dòng đó bên dưới.
+      </p>
+    </div>
+
+    <table style="width:100%; border-collapse: collapse; margin-top:0.75rem;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:0.4rem 0;">Ngày</th>
+          <th style="text-align:left;">Đóng cửa cả ngày</th>
+          <th style="text-align:left;">Giờ mở</th>
+          <th style="text-align:left;">Giờ đóng</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for day in days %}
+          <tr style="border-top: 1px solid var(--border);">
+            <td style="padding:0.4rem 0;">{{ day.get_weekday_display }}</td>
+            <td><input type="checkbox" class="day-closed" data-weekday="{{ day.weekday }}" name="closed_{{ day.weekday }}" {% if day.is_closed %}checked{% endif %}></td>
+            <td><input type="time" class="day-open" data-weekday="{{ day.weekday }}" name="open_{{ day.weekday }}" value="{{ day.open_time|time:'H:i'|default:'' }}"></td>
+            <td><input type="time" class="day-close" data-weekday="{{ day.weekday }}" name="close_{{ day.weekday }}" value="{{ day.close_time|time:'H:i'|default:'' }}"></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button class="btn" type="submit" style="margin-top:1rem;">Lưu</button>
+  </form>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (function () {
+      const latField = document.getElementById('id_latitude');
+      const lngField = document.getElementById('id_longitude');
+      const startLat = parseFloat(latField.value) || 16.0;
+      const startLng = parseFloat(lngField.value) || 108.0;
+      const startZoom = (latField.value && lngField.value) ? 15 : 5;
+
+      const map = L.map('map').setView([startLat, startLng], startZoom);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      const marker = L.marker([startLat, startLng], { draggable: true }).addTo(map);
+
+      function setCoords(lat, lng) {
+        latField.value = lat.toFixed(6);
+        lngField.value = lng.toFixed(6);
+      }
+
+      marker.on('dragend', function () {
+        const pos = marker.getLatLng();
+        setCoords(pos.lat, pos.lng);
+      });
+
+      map.on('click', function (event) {
+        marker.setLatLng(event.latlng);
+        setCoords(event.latlng.lat, event.latlng.lng);
+      });
+
+      document.getElementById('gmaps-coords').addEventListener('input', function () {
+        const match = this.value.match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
+        if (!match) { return; }
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        setCoords(lat, lng);
+        map.setView([lat, lng], 16);
+        marker.setLatLng([lat, lng]);
+      });
+
+      function toggleDayRow(closedInput) {
+        const weekday = closedInput.dataset.weekday;
+        const openInput = document.querySelector('.day-open[data-weekday="' + weekday + '"]');
+        const closeInput = document.querySelector('.day-close[data-weekday="' + weekday + '"]');
+        openInput.disabled = closedInput.checked;
+        closeInput.disabled = closedInput.checked;
+        if (closedInput.checked) {
+          openInput.value = '';
+          closeInput.value = '';
+        }
+      }
+
+      document.querySelectorAll('.day-closed').forEach(function (closedInput) {
+        toggleDayRow(closedInput);
+        closedInput.addEventListener('change', function () { toggleDayRow(closedInput); });
+      });
+
+      document.getElementById('bulk-apply-btn').addEventListener('click', function () {
+        const bulkOpen = document.getElementById('bulk-open').value;
+        const bulkClose = document.getElementById('bulk-close').value;
+
+        for (let weekday = 0; weekday <= 6; weekday++) {
+          const closedInput = document.querySelector('.day-closed[data-weekday="' + weekday + '"]');
+          const openInput = document.querySelector('.day-open[data-weekday="' + weekday + '"]');
+          const closeInput = document.querySelector('.day-close[data-weekday="' + weekday + '"]');
+
+          closedInput.checked = false;
+          openInput.disabled = false;
+          closeInput.disabled = false;
+          openInput.value = bulkOpen;
+          closeInput.value = bulkClose;
+        }
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Sửa đánh giá{% endblock %}
+{% block content %}
+  <h1>Sửa đánh giá</h1>
+  <p class="muted">Bạn chỉ có thể sửa đánh giá trong vòng 24h kể từ khi đăng.</p>
+  <form class="card stacked" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">Lưu</button>
+  </form>
+{% endblock %}

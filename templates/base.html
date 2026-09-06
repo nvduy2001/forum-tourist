@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Forum Tourist{% endblock %}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --border: #e2e2e0;
+      --accent: #0f766e;
+      --accent-contrast: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header.site {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    header.site nav { display: flex; gap: 1.25rem; align-items: center; }
+    header.site .brand { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+    .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .muted { color: var(--muted); }
+    .btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+    .messages li { padding: 0.6rem 0.9rem; border-radius: 6px; background: #fef3c7; margin-bottom: 0.4rem; }
+    form.stacked label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    form.stacked input, form.stacked textarea, form.stacked select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; background: #ecfdf5; color: var(--accent); font-size: 0.8rem; }
+    .list-item { border-bottom: 1px solid var(--border); padding: 0.85rem 1.25rem; }
+    .list-item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <a class="brand" href="{% url 'places:place_list' %}">Forum Tourist</a>
+    <nav>
+      <a href="{% url 'places:place_list' %}">Địa điểm</a>
+      <a href="{% url 'forum:post_list' %}">Diễn đàn</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'lists:list_list' %}">Danh sách của tôi</a>
+        <a href="{% url 'places:place_create' %}">+ Thêm địa điểm</a>
+        <a href="{% url 'accounts:activity' %}">Hoạt động</a>
+        {% if user.is_staff %}<a href="{% url 'moderation:dashboard' %}">Dashboard</a>{% endif %}
+        <a href="{% url 'accounts:profile_detail' user.username %}">{{ user.username }}</a>
+        <a href="{% url 'account_logout' %}">Đăng xuất</a>
+      {% else %}
+        <a href="{% url 'account_login' %}">Đăng nhập</a>
+        <a href="{% url 'account_signup' %}">Đăng ký</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <div class="container">
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ list.name }}{% endblock %}
+{% block content %}
+  <a href="{% url 'lists:list_list' %}">← Danh sách của tôi</a>
+  <h1>{{ list.name }} <span class="badge">{% if list.is_public %}Công khai{% else %}Riêng tư{% endif %}</span></h1>
+  <p class="muted">Tạo bởi {{ list.user.username }}</p>
+  <p>{{ list.description }}</p>
+
+  <h2>Địa điểm trong danh sách</h2>
+  {% for item in list.items.all %}
+    <div class="card list-item">
+      <a href="{% url 'places:place_detail' item.place_id %}"><strong>{{ item.place.name }}</strong></a>
+      {% if item.note %}<p class="muted">{{ item.note }}</p>{% endif %}
+    </div>
+  {% empty %}
+    <p class="muted">Danh sách này chưa có địa điểm nào.</p>
+  {% endfor %}
+{% endblock %}

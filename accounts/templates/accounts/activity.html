@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Hoạt động của tôi{% endblock %}
+{% block content %}
+  <h1>Hoạt động của tôi</h1>
+
+  {% for item in activity %}
+    <div class="card list-item">
+      {% if item.type == 'review' %}
+        <span class="badge">Đánh giá</span>
+        <a href="{% url 'places:place_detail' item.obj.place_id %}">{{ item.obj.place.name }}</a>
+        — {{ item.obj.rating }}/5
+        <p>{{ item.obj.content }}</p>
+      {% elif item.type == 'comment' %}
+        <span class="badge">Bình luận</span>
+        <a href="{% url 'places:place_detail' item.obj.review.place_id %}">{{ item.obj.review.place.name }}</a>
+        <p>{{ item.obj.content }}</p>
+      {% elif item.type == 'post' %}
+        <span class="badge">Diễn đàn</span>
+        <a href="{% url 'forum:post_detail' item.obj.pk %}">{{ item.obj.title }}</a>
+      {% endif %}
+      <div class="muted">{{ item.created_at }}</div>
+    </div>
+  {% empty %}
+    <p class="muted">Chưa có hoạt động nào.</p>
+  {% endfor %}
+
+  <h2>Địa điểm đang theo dõi</h2>
+  {% for follow in followed_places %}
+    <div class="card list-item">
+      <a href="{% url 'places:place_detail' follow.place_id %}">{{ follow.place.name }}</a>
+    </div>
+  {% empty %}
+    <p class="muted">Bạn chưa theo dõi địa điểm nào.</p>
+  {% endfor %}
+{% endblock %}

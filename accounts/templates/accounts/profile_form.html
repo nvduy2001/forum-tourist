@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Sửa hồ sơ{% endblock %}
+{% block content %}
+  <h1>Sửa hồ sơ</h1>
+  <form class="card stacked" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">Lưu</button>
+  </form>
+{% endblock %}

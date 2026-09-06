@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Xóa đánh giá{% endblock %}
+{% block content %}
+  <h1>Xóa đánh giá này?</h1>
+  <p>{{ object.content }}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn" type="submit">Xác nhận xóa</button>
+    <a class="btn secondary" href="{% url 'places:place_detail' object.place_id %}">Hủy</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }}{% endblock %}
+{% block content %}
+  <a href="{% url 'forum:post_list' %}">← Diễn đàn</a>
+  <h1>{{ post.title }}</h1>
+  <p class="muted">Bởi {{ post.user.username }} · {{ post.created_at }}</p>
+  <p>{{ post.content|linebreaks }}</p>
+
+  {% if user == post.user %}
+    <a href="{% url 'forum:post_update' post.pk %}">Sửa</a> ·
+    <a href="{% url 'forum:post_delete' post.pk %}">Xóa</a>
+  {% endif %}
+{% endblock %}

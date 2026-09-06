@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Xóa bài viết{% endblock %}
+{% block content %}
+  <h1>Xóa bài viết "{{ object.title }}"?</h1>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn" type="submit">Xác nhận xóa</button>
+    <a class="btn secondary" href="{% url 'forum:post_detail' object.pk %}">Hủy</a>
+  </form>
+{% endblock %}

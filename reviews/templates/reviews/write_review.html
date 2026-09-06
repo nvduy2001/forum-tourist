@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Viết đánh giá — {{ place.name }}{% endblock %}
+{% block content %}
+  <a href="{% url 'places:place_detail' place.pk %}">← {{ place.name }}</a>
+  <h1>Viết đánh giá cho {{ place.name }}</h1>
+  <p class="muted">
+    Đánh giá của bạn được ghi nhận độc lập — điểm trung bình và các đánh giá khác của địa điểm này
+    chỉ hiển thị lại cho bạn <strong>sau khi</strong> bạn gửi đánh giá.
+  </p>
+
+  <div class="card">
+    <strong>Check-in xác thực vị trí</strong>
+    <p class="muted">Ngưỡng cho phép: {{ checkin_threshold_m }}m so với địa điểm.</p>
+    <button class="btn secondary" id="checkin-btn" type="button">Check-in bằng vị trí hiện tại</button>
+    <p id="checkin-result" class="muted"></p>
+  </div>
+
+  <form class="card stacked" id="review-form">
+    {% csrf_token %}
+    <label for="id_rating">Số sao tổng thể (1-5)</label>
+    <input type="number" id="id_rating" name="rating" min="1" max="5" required>
+
+    <label for="id_quality_rating">Chất lượng (tùy chọn)</label>
+    <input type="number" id="id_quality_rating" name="quality_rating" min="1" max="5">
+    <label for="id_price_rating">Giá cả (tùy chọn)</label>
+    <input type="number" id="id_price_rating" name="price_rating" min="1" max="5">
+    <label for="id_service_rating">Thái độ phục vụ (tùy chọn)</label>
+    <input type="number" id="id_service_rating" name="service_rating" min="1" max="5">
+    <label for="id_space_rating">Không gian (tùy chọn)</label>
+    <input type="number" id="id_space_rating" name="space_rating" min="1" max="5">
+
+    <label for="id_content">Nội dung</label>
+    <textarea id="id_content" name="content" rows="4" required></textarea>
+
+    <label>Thẻ nhanh</label>
+    <div>
+      {% for tag in tags %}
+        <label style="display:inline-block; margin-right:0.75rem; font-weight:normal;">
+          <input type="checkbox" name="tags" value="{{ tag.id }}"> {{ tag.name }}
+        </label>
+      {% endfor %}
+    </div>
+
+    <label for="id_media">Ảnh/video minh họa (tùy chọn)</label>
+    <input type="file" id="id_media" name="media" multiple accept="image/*,video/*">
+
+    <button class="btn" type="submit">Gửi đánh giá</button>
+  </form>
+
+  <div id="review-result" class="card" hidden></div>
+  <ul id="review-errors" class="muted"></ul>
+
+  <script>
+    function getCookie(name) {
+      const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    document.getElementById('checkin-btn').addEventListener('click', function () {
+      const resultEl = document.getElementById('checkin-result');
+      if (!navigator.geolocation) {
+        resultEl.textContent = 'Trình duyệt không hỗ trợ định vị.';
+        return;
+      }
+      resultEl.textContent = 'Đang lấy vị trí...';
+      navigator.geolocation.getCurrentPosition(function (position) {
+        const body = new URLSearchParams({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        fetch('{% url "reviews:check_in" place.pk %}', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body,
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            resultEl.textContent = data.is_valid
+              ? 'Check-in hợp lệ (' + data.distance_m + 'm).'
+              : 'Bạn đang cách địa điểm ' + data.distance_m + 'm — ngoài ngưỡng ' + data.threshold_m + 'm.';
+          })
+          .catch(function () { resultEl.textContent = 'Không thể check-in, thử lại sau.'; });
+      }, function () {
+        resultEl.textContent = 'Không lấy được vị trí — hãy cấp quyền định vị cho trình duyệt.';
+      });
+    });
+
+    document.getElementById('review-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      const errorsEl = document.getElementById('review-errors');
+      errorsEl.innerHTML = '';
+
+      const form = document.getElementById('review-form');
+      const body = new FormData(form);
+
+      fetch('{% url "reviews:write_review" place.pk %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken },
+        body: body,
+      })
+        .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+        .then(function ({ ok, data }) {
+          if (!ok) {
+            Object.entries(data.errors || {}).forEach(function ([field, msgs]) {
+              const li = document.createElement('li');
+              li.textContent = field + ': ' + msgs.join(', ');
+              errorsEl.appendChild(li);
+            });
+            return;
+          }
+          document.getElementById('review-form').hidden = true;
+          const resultEl = document.getElementById('review-result');
+          resultEl.hidden = false;
+          resultEl.innerHTML = '<strong>Đã gửi đánh giá!</strong>'
+            + '<p>Điểm của bạn: ' + data.personal_rating + '/5</p>'
+            + '<p>Điểm trung bình cộng đồng: '
+            + (data.community_average !== null ? data.community_average + '/5' : 'chưa có dữ liệu')
+            + '</p>';
+        })
+        .catch(function () { errorsEl.innerHTML = '<li>Không gửi được đánh giá, thử lại sau.</li>'; });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.username }}{% endblock %}
+{% block content %}
+  <div class="card">
+    {% if profile_user.cover_image %}
+      <img src="{{ profile_user.cover_image.url }}" alt="" style="width:100%; max-height:180px; object-fit:cover; border-radius:8px;">
+    {% endif %}
+    <div style="display:flex; gap:1rem; align-items:center; margin-top:0.75rem;">
+      {% if profile_user.avatar %}
+        <img src="{{ profile_user.avatar.url }}" alt="" style="width:72px; height:72px; border-radius:50%; object-fit:cover;">
+      {% endif %}
+      <div>
+        <h1 style="margin:0;">{{ profile_user.username }}</h1>
+        <span class="badge">{{ profile_user.member_tier }}</span>
+        <span class="muted">{{ profile_user.points }} điểm</span>
+      </div>
+    </div>
+    {% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% endif %}
+
+    <div class="muted">
+      {{ review_count }} đánh giá · {{ follower_count }} người theo dõi · {{ following_count }} đang theo dõi
+    </div>
+
+    {% if user == profile_user %}
+      <a class="btn secondary" href="{% url 'accounts:profile_edit' %}">Sửa hồ sơ</a>
+      <a class="btn secondary" href="{% url 'accounts:activity' %}">Hoạt động của tôi</a>
+    {% elif user.is_authenticated %}
+      <button class="btn" id="follow-btn" data-username="{{ profile_user.username }}">
+        {% if is_following %}Bỏ theo dõi{% else %}Theo dõi{% endif %}
+      </button>
+    {% endif %}
+  </div>
+
+  <h2>Huy hiệu</h2>
+  {% for user_badge in badges %}
+    <span class="badge" title="{{ user_badge.badge.description }}">{{ user_badge.badge.name }}</span>
+  {% empty %}
+    <p class="muted">Chưa có huy hiệu nào.</p>
+  {% endfor %}
+
+  <h2>Danh sách công khai</h2>
+  {% for list in public_lists %}
+    <div class="card list-item">
+      <a href="{% url 'lists:list_detail' list.pk %}">{{ list.name }}</a>
+    </div>
+  {% empty %}
+    <p class="muted">Chưa có danh sách công khai nào.</p>
+  {% endfor %}
+
+  {% if user.is_authenticated and user != profile_user %}
+  <script>
+    function getCookie(name) {
+      const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+    document.getElementById('follow-btn').addEventListener('click', function () {
+      const btn = this;
+      fetch('/users/' + btn.dataset.username + '/follow/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) { btn.textContent = data.followed ? 'Bỏ theo dõi' : 'Theo dõi'; });
+    });
+  </script>
+  {% endif %}
+{% endblock %}

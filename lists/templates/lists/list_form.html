@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Sửa danh sách{% else %}Tạo danh sách{% endif %}{% endblock %}
+{% block content %}
+  <h1>{% if object %}Sửa danh sách{% else %}Tạo danh sách mới{% endif %}</h1>
+  <form class="card stacked" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">Lưu</button>
+  </form>
+{% endblock %}

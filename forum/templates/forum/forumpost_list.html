@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Diễn đàn{% endblock %}
+{% block content %}
+  <h1>Diễn đàn</h1>
+  <div class="muted">
+    Chuyên mục:
+    <a href="{% url 'forum:post_list' %}">Tất cả</a> ·
+    <a href="?category=kinh_nghiem_du_lich">Kinh nghiệm du lịch</a> ·
+    <a href="?category=hoi_dap_dich_vu">Hỏi đáp dịch vụ</a> ·
+    <a href="?category=khac">Khác</a>
+  </div>
+  {% if user.is_authenticated %}
+    <a class="btn" href="{% url 'forum:post_create' %}">+ Đăng bài mới</a>
+  {% endif %}
+
+  {% for post in posts %}
+    <div class="card list-item">
+      <span class="badge">{{ post.get_category_display }}</span>
+      <a href="{% url 'forum:post_detail' post.pk %}"><strong>{{ post.title }}</strong></a>
+      <div class="muted">Bởi {{ post.user.username }} · {{ post.created_at }}</div>
+    </div>
+  {% empty %}
+    <p class="muted">Chưa có bài viết nào.</p>
+  {% endfor %}
+{% endblock %}

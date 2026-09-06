@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Xác minh chủ địa điểm — {{ place.name }}{% endblock %}
+{% block content %}
+  <a href="{% url 'places:place_detail' place.pk %}">← {{ place.name }}</a>
+  <h1>Yêu cầu xác minh chủ địa điểm</h1>
+  <p class="muted">
+    Điền thông tin liên hệ bên dưới. Admin sẽ đối chiếu thủ công với thông tin công khai của
+    "{{ place.name }}" rồi phản hồi kết quả qua email.
+  </p>
+  <form class="card stacked" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">Gửi yêu cầu</button>
+  </form>
+{% endblock %}

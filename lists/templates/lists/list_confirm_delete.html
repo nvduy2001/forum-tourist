@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Xóa danh sách{% endblock %}
+{% block content %}
+  <h1>Xóa danh sách "{{ object.name }}"?</h1>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn" type="submit">Xác nhận xóa</button>
+    <a class="btn secondary" href="{% url 'lists:list_detail' object.pk %}">Hủy</a>
+  </form>
+{% endblock %}

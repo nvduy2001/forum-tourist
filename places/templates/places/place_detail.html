@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}{{ place.name }}{% endblock %}
+{% block content %}
+  <a href="{% url 'places:place_list' %}">← Danh sách địa điểm</a>
+  <h1>{{ place.name }} <span class="badge">{{ place.get_status_display }}</span></h1>
+  <p class="muted">{{ place.region }} · {{ place.get_category_display }}</p>
+  <p>{{ place.address }}</p>
+  {% if place.google_maps_url %}
+    <p><a href="{{ place.google_maps_url }}" target="_blank" rel="noopener">📍 Xem trên Google Maps</a></p>
+  {% endif %}
+  <p>{{ place.description }}</p>
+
+  {% if opening_hours %}
+    <div class="card">
+      <strong>Giờ mở cửa</strong>
+      <table style="width:100%; margin-top:0.4rem;">
+        {% for day in opening_hours %}
+          <tr>
+            <td class="muted" style="padding:0.15rem 0;">{{ day.get_weekday_display }}</td>
+            <td>
+              {% if day.is_closed %}
+                Đóng cửa
+              {% elif day.open_time and day.close_time %}
+                {{ day.open_time|time:"H:i" }} - {{ day.close_time|time:"H:i" }}
+              {% else %}
+                <span class="muted">Chưa cập nhật</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% endif %}
+
+  {% if images %}
+    <div class="card" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      {% for img in images %}
+        <img src="{{ img.image.url }}" alt="{{ img.caption }}" style="width:120px; height:90px; object-fit:cover; border-radius:6px;">
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <strong>Điểm trung bình cộng đồng:</strong>
+    {% if average_rating %}{{ average_rating|floatformat:1 }} / 5{% else %}Chưa có đánh giá{% endif %}
+    <div class="muted">{{ place.review_count }} đánh giá · {{ place.followers.count }} người theo dõi</div>
+  </div>
+
+  <div class="muted">
+    Chia sẻ:
+    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri|urlencode }}" target="_blank" rel="noopener">Facebook</a> ·
+    <a href="https://sp.zalo.me/share?u={{ request.build_absolute_uri|urlencode }}" target="_blank" rel="noopener">Zalo</a> ·
+    <a href="#" id="copy-link-btn">Sao chép liên kết</a>
+  </div>
+
+  {% if promotions %}
+    <h2>Khuyến mãi / Tin tức</h2>
+    {% for promo in promotions %}
+      <div class="card list-item">
+        <strong>{{ promo.title }}</strong>
+        <p>{{ promo.content }}</p>
+        <span class="muted">{{ promo.created_at }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if menu_items %}
+    <h2>Menu / Bảng giá</h2>
+    {% for item in menu_items %}
+      <div class="list-item">
+        {{ item.name }} — {{ item.price|floatformat:0 }}đ
+        {% if item.description %}<span class="muted">({{ item.description }})</span>{% endif %}
+        {% if is_owner %}
+          <a href="{% url 'places:delete_menu_item' place.pk item.pk %}">Xóa</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if user.is_authenticated %}
+    <a class="btn" href="{% url 'reviews:write_review_page' place.pk %}">Viết đánh giá</a>
+    <button class="btn secondary" id="follow-place-btn" data-place-id="{{ place.id }}">
+      {% if is_following_place %}Bỏ theo dõi địa điểm{% else %}Theo dõi địa điểm{% endif %}
+    </button>
+    {% if is_owner %}
+      <a class="btn secondary" href="{% url 'places:place_update' place.pk %}">Sửa thông tin địa điểm</a>
+    {% elif place.is_business_category %}
+      <a class="btn secondary" href="{% url 'places:request_ownership' place.pk %}">Bạn là chủ địa điểm này?</a>
+    {% endif %}
+  {% else %}
+    <p><a href="{% url 'account_login' %}">Đăng nhập</a> để viết đánh giá.</p>
+  {% endif %}
+
+  {% if is_owner %}
+    <div class="card">
+      <strong>Quản lý địa điểm (chủ sở hữu)</strong>
+      <form method="post" action="{% url 'places:add_place_image' place.pk %}" enctype="multipart/form-data" style="margin-top:0.5rem;">
+        {% csrf_token %}
+        <input type="file" name="image" accept="image/*" required>
+        <input type="text" name="caption" placeholder="Chú thích ảnh">
+        <button class="btn secondary" type="submit">Thêm ảnh</button>
+      </form>
+      <form method="post" action="{% url 'places:add_menu_item' place.pk %}" style="margin-top:0.5rem; display:flex; gap:0.5rem;">
+        {% csrf_token %}
+        <input type="text" name="name" placeholder="Tên món" required>
+        <input type="number" name="price" placeholder="Giá" required>
+        <button class="btn secondary" type="submit">Thêm món</button>
+      </form>
+      <form method="post" action="{% url 'places:create_promotion' place.pk %}" style="margin-top:0.5rem;">
+        {% csrf_token %}
+        <input type="text" name="title" placeholder="Tiêu đề khuyến mãi" required style="width:100%;">
+        <textarea name="content" placeholder="Nội dung" required style="width:100%; margin-top:0.4rem;"></textarea>
+        <button class="btn secondary" type="submit">Đăng tin (chờ Admin duyệt)</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <h2>Đánh giá gần đây</h2>
+  {% for review in reviews %}
+    <div class="card list-item">
+      <strong>{{ review.user.username }}</strong> — {{ review.rating }}/5
+      {% if review.quality_rating or review.price_rating or review.service_rating or review.space_rating %}
+        <div class="muted">
+          {% if review.quality_rating %}Chất lượng: {{ review.quality_rating }}/5 {% endif %}
+          {% if review.price_rating %}· Giá cả: {{ review.price_rating }}/5 {% endif %}
+          {% if review.service_rating %}· Phục vụ: {{ review.service_rating }}/5 {% endif %}
+          {% if review.space_rating %}· Không gian: {{ review.space_rating }}/5{% endif %}
+        </div>
+      {% endif %}
+      <p>{{ review.content }}</p>
+
+      {% for tag in review.tags.all %}<span class="badge">{{ tag.name }}</span>{% endfor %}
+
+      {% if review.media.all %}
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+          {% for media in review.media.all %}
+            {% if media.media_type == 'image' %}
+              <img src="{{ media.file.url }}" style="width:100px; height:80px; object-fit:cover; border-radius:6px;">
+            {% else %}
+              <video src="{{ media.file.url }}" style="width:140px;" controls></video>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="muted">{{ review.created_at }}</div>
+
+      {% if user.is_authenticated %}
+        <button class="btn secondary vote-btn" data-review-id="{{ review.id }}" type="button">
+          👍 Hữu ích ({{ review.helpful_votes.count }})
+        </button>
+        {% if review.user_id == user.id and review.is_editable %}
+          <a href="{% url 'reviews:review_update' review.pk %}">Sửa</a>
+          <a href="{% url 'reviews:review_delete' review.pk %}">Xóa</a>
+        {% endif %}
+      {% endif %}
+
+      {% if review.owner_reply %}
+        <div class="card" style="margin-top:0.5rem; background:#f0fdfa;">
+          <strong>Phản hồi từ chủ địa điểm:</strong>
+          <p>{{ review.owner_reply }}</p>
+        </div>
+      {% elif is_owner %}
+        <form class="owner-reply-form" data-review-id="{{ review.id }}" style="margin-top:0.5rem; display:flex; gap:0.5rem;">
+          <input type="text" name="content" placeholder="Phản hồi công khai..." required style="flex:1;">
+          <button class="btn secondary" type="submit">Gửi phản hồi</button>
+        </form>
+      {% endif %}
+
+      <div class="comments" data-review-id="{{ review.id }}" style="margin-top:0.75rem; padding-left:1rem; border-left: 2px solid var(--border);">
+        {% for comment in review.comments.all %}
+          {% if not comment.parent_id %}
+            <p>
+              <strong>{{ comment.user.username }}</strong>: {{ comment.content }}
+              {% if user.is_authenticated %}
+                <button class="btn secondary like-btn" data-comment-id="{{ comment.id }}" type="button" style="padding:0.1rem 0.4rem;">
+                  ❤ {{ comment.likes.count }}
+                </button>
+                <a href="#" class="reply-toggle" data-comment-id="{{ comment.id }}">Trả lời</a>
+              {% endif %}
+            </p>
+            {% for reply in comment.replies.all %}
+              <p style="margin-left:1.5rem;"><strong>{{ reply.user.username }}</strong>: {{ reply.content }}</p>
+            {% endfor %}
+            {% if user.is_authenticated %}
+              <form class="comment-form" data-review-id="{{ review.id }}" data-parent-id="{{ comment.id }}" hidden style="display:flex; gap:0.5rem; margin-left:1.5rem;">
+                <input type="text" name="content" placeholder="Trả lời..." required style="flex:1; padding:0.4rem;">
+                <button class="btn secondary" type="submit">Gửi</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {% if user.is_authenticated %}
+          <form class="comment-form" data-review-id="{{ review.id }}" style="display:flex; gap:0.5rem;">
+            <input type="text" name="content" placeholder="Viết bình luận..." required style="flex:1; padding:0.4rem;">
+            <button class="btn secondary" type="submit">Gửi</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <p class="muted">Chưa có đánh giá nào.</p>
+  {% endfor %}
+
+  <script>
+    document.getElementById('copy-link-btn').addEventListener('click', function (event) {
+      event.preventDefault();
+      navigator.clipboard.writeText(window.location.href).then(function () {
+        event.target.textContent = 'Đã sao chép!';
+      });
+    });
+  </script>
+
+  {% if user.is_authenticated %}
+  <script>
+    function getCookie(name) {
+      const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    function postForm(url, data) {
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(data),
+      }).then(function (r) { return r.json(); });
+    }
+
+    document.getElementById('follow-place-btn').addEventListener('click', function () {
+      const btn = this;
+      postForm('/places/' + btn.dataset.placeId + '/follow/', {}).then(function (data) {
+        btn.textContent = data.followed ? 'Bỏ theo dõi địa điểm' : 'Theo dõi địa điểm';
+      });
+    });
+
+    document.querySelectorAll('.vote-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        postForm('/reviews/' + btn.dataset.reviewId + '/vote/', {}).then(function (data) {
+          btn.textContent = '👍 Hữu ích (' + data.vote_count + ')';
+        });
+      });
+    });
+
+    document.querySelectorAll('.like-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        postForm('/comments/' + btn.dataset.commentId + '/like/', {}).then(function (data) {
+          btn.textContent = '❤ ' + data.like_count;
+        });
+      });
+    });
+
+    document.querySelectorAll('.reply-toggle').forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        const commentId = this.dataset.commentId;
+        const form = document.querySelector('.comment-form[data-parent-id="' + commentId + '"]');
+        if (form) { form.hidden = !form.hidden; }
+      });
+    });
+
+    document.querySelectorAll('.comment-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const reviewId = form.dataset.reviewId;
+        const parentId = form.dataset.parentId || '';
+        const input = form.querySelector('input[name="content"]');
+
+        postForm('/reviews/' + reviewId + '/comments/', { content: input.value, parent_id: parentId })
+          .then(function (data) {
+            if (data.error) { return; }
+            const p = document.createElement('p');
+            if (parentId) { p.style.marginLeft = '1.5rem'; }
+            p.innerHTML = '<strong>' + data.username + '</strong>: ' + data.content;
+            form.parentElement.insertBefore(p, form);
+            input.value = '';
+            if (parentId) { form.hidden = true; }
+          });
+      });
+    });
+
+    document.querySelectorAll('.owner-reply-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const reviewId = form.dataset.reviewId;
+        const input = form.querySelector('input[name="content"]');
+
+        postForm('/reviews/' + reviewId + '/owner-reply/', { content: input.value })
+          .then(function (data) {
+            if (data.error) { return; }
+            form.outerHTML = '<div class="card" style="margin-top:0.5rem; background:#f0fdfa;">'
+              + '<strong>Phản hồi từ chủ địa điểm:</strong><p>' + data.owner_reply + '</p></div>';
+          });
+      });
+    });
+  </script>
+  {% endif %}
+{% endblock %}
